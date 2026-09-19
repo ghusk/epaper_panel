@@ -1,0 +1,11 @@
+# Build output
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Real device config (WiFi/NTP/timezones/weather API key) - copy from sample_config.h
+include/config.h
+
+# Editor/OS
+.vscode/
+.DS_Store
