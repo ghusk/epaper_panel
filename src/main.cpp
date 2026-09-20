@@ -34,6 +34,7 @@ static uint8_t ImageBW[27200];
 static const time_t MIN_VALID_EPOCH = 1700000000;
 
 static bool ntpEverSynced = false;
+static unsigned long bootMillis = 0;
 static unsigned long lastSuccessfulSyncMillis = 0;
 static unsigned long lastNtpAttemptMillis = 0;
 static unsigned long lastWeatherFetchMillis = 0;
@@ -553,6 +554,8 @@ void setup() {
     Serial.begin(115200);
     delay(200);
 
+    bootMillis = millis();
+
     // Panel power switch.
     pinMode(7, OUTPUT);
     digitalWrite(7, HIGH);
@@ -582,8 +585,15 @@ void setup() {
 void loop() {
     unsigned long nowMs = millis();
 
-    // Hourly: re-verify against NTP.
-    if (nowMs - lastNtpAttemptMillis >= NTP_RESYNC_INTERVAL_MS) {
+    // Hourly: re-verify against NTP. Until the first successful sync,
+    // retry sooner (see NTP_RETRY_INTERVAL_MS) but give up after
+    // NTP_RETRY_WINDOW_MS and fall back to the normal cadence, so a
+    // persistent outage doesn't keep retrying WiFi/NTP indefinitely.
+    unsigned long ntpInterval = NTP_RESYNC_INTERVAL_MS;
+    if (!ntpEverSynced && (nowMs - bootMillis < NTP_RETRY_WINDOW_MS)) {
+        ntpInterval = NTP_RETRY_INTERVAL_MS;
+    }
+    if (nowMs - lastNtpAttemptMillis >= ntpInterval) {
         lastNtpAttemptMillis = nowMs;
         connectWiFi();
         if (syncNtp()) {

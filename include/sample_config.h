@@ -25,6 +25,16 @@
 // How often the internal clock is re-verified against the NTP source.
 #define NTP_RESYNC_INTERVAL_MS       (60UL * 60UL * 1000UL) // 1 hour
 
+// Until the first successful sync, retry this often instead of waiting a
+// full hour (e.g. NTP server slow/unreachable at boot on a flaky network).
+#define NTP_RETRY_INTERVAL_MS        (60UL * 1000UL)        // 1 minute
+
+// Stop the fast retries after this long since boot and fall back to the
+// normal hourly cadence, so a persistent NTP outage doesn't keep retrying
+// WiFi/NTP indefinitely (battery drain concern if LAN is up but NTP isn't
+// responding).
+#define NTP_RETRY_WINDOW_MS          (5UL * 60UL * 1000UL)  // 5 minutes
+
 // How often the weather is re-fetched.
 #define WEATHER_REFRESH_INTERVAL_MS  (15UL * 60UL * 1000UL) // 15 minutes
 
