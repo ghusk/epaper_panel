@@ -43,6 +43,7 @@ static String weatherDesc;
 static float weatherTemp = 0.0f;
 static int weatherHumidity = 0;
 static float weatherWind = 0.0f;
+static time_t weatherLastFetchEpoch = 0;
 
 // ---------------------------------------------------------------------------
 // WiFi
@@ -208,6 +209,7 @@ static bool fetchWeatherBlocking() {
             weatherTemp = temp;
             weatherHumidity = humidity;
             weatherWind = wind;
+            weatherLastFetchEpoch = time(nullptr);
             xSemaphoreGive(weatherMutex);
             ok = true;
         } else {
@@ -360,6 +362,7 @@ static void renderBuffer(bool timeFresh) {
     float wTemp = weatherTemp;
     int wHumidity = weatherHumidity;
     float wWind = weatherWind;
+    time_t wFetchEpoch = weatherLastFetchEpoch;
     xSemaphoreGive(weatherMutex);
 
     if (wValid) {
@@ -374,7 +377,18 @@ static void renderBuffer(bool timeFresh) {
         EPD_ShowString(8, 200, "Weather unavailable", 16, BLACK);
     }
 
-    EPD_ShowString(8, 250, "Updates every 1 min - NTP re-sync hourly", 12, BLACK);
+    char footer[64];
+    if (wFetchEpoch > 0) {
+        struct tm fetchTm;
+        localtime_r(&wFetchEpoch, &fetchTm);
+        char stamp[8];
+        strftime(stamp, sizeof(stamp), "%H:%M", &fetchTm);
+        snprintf(footer, sizeof(footer), "Updates every 1 min - NTP re-sync hourly - Weather as of %s", stamp);
+    } else {
+        strncpy(footer, "Updates every 1 min - NTP re-sync hourly", sizeof(footer));
+        footer[sizeof(footer) - 1] = '\0';
+    }
+    EPD_ShowString(8, 250, footer, 12, BLACK);
 }
 
 // True once the panel has been primed (fast-mode init + baseline clear) so
