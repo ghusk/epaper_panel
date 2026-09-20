@@ -12,6 +12,9 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 #include "EPD.h"
 #include "config.h"
@@ -73,16 +76,19 @@ static bool connectWiFi() {
 static bool syncNtp() {
     if (WiFi.status() != WL_CONNECTED) return false;
 
-    Serial.println("Syncing time via NTP...");
+    Serial.printf("Syncing time via NTP (gateway=%s, dns=%s)...\n",
+                  WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP().toString().c_str());
     configTime(0, 0, NTP_SERVER_LOCAL, NTP_SERVER_FALLBACK_1, NTP_SERVER_FALLBACK_2);
 
     time_t now = time(nullptr);
     int attempts = 0;
-    while (now < MIN_VALID_EPOCH && attempts < 30) {
+    while (now < MIN_VALID_EPOCH && attempts < 60) {
         delay(500);
+        Serial.print(".");
         now = time(nullptr);
         attempts++;
     }
+    Serial.println();
 
     bool ok = now >= MIN_VALID_EPOCH;
     Serial.println(ok ? "NTP sync OK" : "NTP sync FAILED");
@@ -162,10 +168,21 @@ static void validateTimezoneConfig() {
 // ---------------------------------------------------------------------------
 // Weather
 // ---------------------------------------------------------------------------
-static bool fetchWeather() {
+// Guards the shared weather* fields below, since they are written from the
+// background fetch task (see fetchWeatherAsync) while renderBuffer() may read
+// them concurrently on the main loop.
+static SemaphoreHandle_t weatherMutex = nullptr;
+static volatile bool weatherTaskRunning = false;
+static volatile bool weatherTaskDone = false;
+
+// Does the actual (blocking, potentially very slow) HTTP fetch + parse. Only
+// ever called from weatherTaskFn(), never directly from setup()/loop().
+static bool fetchWeatherBlocking() {
     if (WiFi.status() != WL_CONNECTED) return false;
 
     HTTPClient http;
+    http.setConnectTimeout(8000);
+    http.setTimeout(8000);
     String url = String("http://api.openweathermap.org/data/2.5/weather?q=") +
                  OWM_CITY_QUERY + "&appid=" + OWM_API_KEY + "&units=" + OWM_UNITS;
 
@@ -179,11 +196,19 @@ static bool fetchWeather() {
         JsonDocument doc;
         DeserializationError err = deserializeJson(doc, payload);
         if (!err) {
-            weatherCity = doc["name"].as<String>();
-            weatherDesc = doc["weather"][0]["description"].as<String>();
-            weatherTemp = doc["main"]["temp"].as<float>();
-            weatherHumidity = doc["main"]["humidity"].as<int>();
-            weatherWind = doc["wind"]["speed"].as<float>();
+            String city = doc["name"].as<String>();
+            String desc = doc["weather"][0]["description"].as<String>();
+            float temp = doc["main"]["temp"].as<float>();
+            int humidity = doc["main"]["humidity"].as<int>();
+            float wind = doc["wind"]["speed"].as<float>();
+
+            xSemaphoreTake(weatherMutex, portMAX_DELAY);
+            weatherCity = city;
+            weatherDesc = desc;
+            weatherTemp = temp;
+            weatherHumidity = humidity;
+            weatherWind = wind;
+            xSemaphoreGive(weatherMutex);
             ok = true;
         } else {
             Serial.print("Weather JSON parse error: ");
@@ -194,6 +219,44 @@ static bool fetchWeather() {
     }
     http.end();
     return ok;
+}
+
+static void weatherTaskFn(void *param) {
+    bool ok = fetchWeatherBlocking();
+
+    xSemaphoreTake(weatherMutex, portMAX_DELAY);
+    weatherValid = ok;
+    xSemaphoreGive(weatherMutex);
+
+    weatherTaskDone = true;
+    weatherTaskRunning = false;
+    vTaskDelete(nullptr);
+}
+
+// Kicks off a weather fetch on a background task and waits up to timeoutMs
+// for it to finish, but never longer than that - if the underlying HTTP
+// call is stuck (e.g. DNS silently dropped by a restrictive/guest network,
+// which is not bounded by HTTPClient's connect/read timeouts), this returns
+// anyway and the task is simply left running in the background. It will
+// still update weatherValid/weatherCity/etc. under the mutex whenever (if
+// ever) it completes, picked up on a later render. This guarantees setup()
+// and loop() can never hang indefinitely because of the network.
+static void fetchWeatherAsync(uint32_t timeoutMs) {
+    if (weatherTaskRunning) {
+        Serial.println("Weather fetch still in progress from a previous attempt; skipping.");
+        return;
+    }
+    weatherTaskRunning = true;
+    weatherTaskDone = false;
+    xTaskCreatePinnedToCore(weatherTaskFn, "weatherFetch", 8192, nullptr, 1, nullptr, 0);
+
+    uint32_t start = millis();
+    while (!weatherTaskDone && (millis() - start) < timeoutMs) {
+        delay(50);
+    }
+    if (!weatherTaskDone) {
+        Serial.println("Weather fetch taking too long; continuing without blocking further.");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -290,13 +353,22 @@ static void renderBuffer(bool timeFresh) {
     EPD_DrawLine(0, 192, EPD_VISIBLE_W, 192, BLACK);
 
     // --- Weather ---
-    if (weatherValid) {
-        snprintf(buf, sizeof(buf), "%s: %s", weatherCity.c_str(), weatherDesc.c_str());
+    xSemaphoreTake(weatherMutex, portMAX_DELAY);
+    bool wValid = weatherValid;
+    String wCity = weatherCity;
+    String wDesc = weatherDesc;
+    float wTemp = weatherTemp;
+    int wHumidity = weatherHumidity;
+    float wWind = weatherWind;
+    xSemaphoreGive(weatherMutex);
+
+    if (wValid) {
+        snprintf(buf, sizeof(buf), "%s: %s", wCity.c_str(), wDesc.c_str());
         EPD_ShowString(8, 200, buf, 16, BLACK);
 
         const char *unit = (strcmp(OWM_UNITS, "metric") == 0) ? "C" : "F";
         snprintf(buf, sizeof(buf), "Temp: %.1f%s   Humidity: %d%%   Wind: %.1f m/s",
-                  weatherTemp, unit, weatherHumidity, weatherWind);
+                  wTemp, unit, wHumidity, wWind);
         EPD_ShowString(8, 224, buf, 16, BLACK);
     } else {
         EPD_ShowString(8, 200, "Weather unavailable", 16, BLACK);
@@ -347,6 +419,8 @@ void setup() {
 
     EPD_GPIOInit();
 
+    weatherMutex = xSemaphoreCreateMutex();
+
     connectWiFi();
 
     if (syncNtp()) {
@@ -354,7 +428,7 @@ void setup() {
         lastSuccessfulSyncMillis = millis();
     }
 
-    weatherValid = fetchWeather();
+    fetchWeatherAsync(12000);
 
     renderBuffer(isTimeFresh());
     pushFull();
@@ -375,7 +449,7 @@ void loop() {
             ntpEverSynced = true;
             lastSuccessfulSyncMillis = millis();
         }
-        weatherValid = fetchWeather();
+        fetchWeatherAsync(12000);
     }
 
     // Every minute: redraw from the internally kept clock.
