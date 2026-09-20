@@ -25,6 +25,9 @@
 // How often the internal clock is re-verified against the NTP source.
 #define NTP_RESYNC_INTERVAL_MS       (60UL * 60UL * 1000UL) // 1 hour
 
+// How often the weather is re-fetched.
+#define WEATHER_REFRESH_INTERVAL_MS  (15UL * 60UL * 1000UL) // 15 minutes
+
 // If a successful NTP sync hasn't happened within this window, the on-screen
 // "stale" indicator is shown instead of the "fresh" one.
 #define NTP_STALE_THRESHOLD_MS       (2UL * 60UL * 60UL * 1000UL) // 2 hours
@@ -62,4 +65,4 @@ static const TimezoneConfig TIMEZONES[4] = {
 #define OWM_CITY_QUERY   "London,GB"     // "City,CountryCode"
 #define OWM_UNITS        "metric"        // "metric" (C) or "imperial" (F)
 
-// Weather is refreshed at the same cadence as the hourly NTP re-sync.
+// Weather is refreshed on its own cadence (see WEATHER_REFRESH_INTERVAL_MS above).

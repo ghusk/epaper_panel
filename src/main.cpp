@@ -4,6 +4,7 @@
 // - Gathers NTP time + weather on boot.
 // - Redraws the display once a minute from the internally kept clock.
 // - Re-verifies the clock against a local-network NTP source once an hour.
+// - Refreshes weather every 15 minutes.
 // - Shows an icon indicating whether the time signal is still "fresh" (recently
 //   NTP-verified) or "stale".
 
@@ -35,6 +36,7 @@ static const time_t MIN_VALID_EPOCH = 1700000000;
 static bool ntpEverSynced = false;
 static unsigned long lastSuccessfulSyncMillis = 0;
 static unsigned long lastNtpAttemptMillis = 0;
+static unsigned long lastWeatherFetchMillis = 0;
 static unsigned long lastDisplayUpdateMillis = 0;
 static unsigned long updateCounter = 0;
 
@@ -512,7 +514,7 @@ static void renderBuffer(bool timeFresh) {
 
     EPD_DrawLine(0, tzBottom, EPD_VISIBLE_W, tzBottom, BLACK);
 
-    EPD_ShowString(8, 252, "Updates every 1 min - NTP re-sync hourly", 12, BLACK);
+    EPD_ShowString(8, 252, "Updates every 1 min - weather every 15 min - NTP hourly", 12, BLACK);
 }
 
 // True once the panel has been primed (fast-mode init + baseline clear) so
@@ -573,13 +575,14 @@ void setup() {
 
     lastDisplayUpdateMillis = millis();
     lastNtpAttemptMillis = millis();
+    lastWeatherFetchMillis = millis();
     updateCounter = 0;
 }
 
 void loop() {
     unsigned long nowMs = millis();
 
-    // Hourly: re-verify against NTP and refresh weather.
+    // Hourly: re-verify against NTP.
     if (nowMs - lastNtpAttemptMillis >= NTP_RESYNC_INTERVAL_MS) {
         lastNtpAttemptMillis = nowMs;
         connectWiFi();
@@ -587,6 +590,12 @@ void loop() {
             ntpEverSynced = true;
             lastSuccessfulSyncMillis = millis();
         }
+    }
+
+    // Every 15 minutes: refresh weather.
+    if (nowMs - lastWeatherFetchMillis >= WEATHER_REFRESH_INTERVAL_MS) {
+        lastWeatherFetchMillis = nowMs;
+        connectWiFi();
         fetchWeatherAsync(12000);
     }
 
