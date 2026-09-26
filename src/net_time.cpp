@@ -38,17 +38,25 @@ bool connectWiFi() {
 bool syncNtp() {
     if (WiFi.status() != WL_CONNECTED) return false;
 
-    Serial.printf("Syncing time via NTP (gateway=%s, dns=%s)...\n",
-                  WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP().toString().c_str());
+    Serial.printf("Syncing time via NTP (gateway=%s, dns=%s, rssi=%ddBm)...\n",
+                  WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP().toString().c_str(), WiFi.RSSI());
     configTime(0, 0, NTP_SERVER_LOCAL, NTP_SERVER_FALLBACK_1, NTP_SERVER_FALLBACK_2);
 
+    // A single dropped UDP request (e.g. weak signal from a marginal power
+    // source) would otherwise leave us waiting on lwIP's own much longer
+    // internal backoff; re-issuing configTime() periodically resends the
+    // request sooner, without extending the worst-case wait by much.
+    const int RESEND_EVERY_ATTEMPTS = 16; // ~8s at 500ms/attempt
     time_t now = time(nullptr);
     int attempts = 0;
-    while (now < MIN_VALID_EPOCH && attempts < 60) {
+    while (now < MIN_VALID_EPOCH && attempts < 90) {
         delay(500);
         Serial.print(".");
         now = time(nullptr);
         attempts++;
+        if (now < MIN_VALID_EPOCH && attempts % RESEND_EVERY_ATTEMPTS == 0) {
+            configTime(0, 0, NTP_SERVER_LOCAL, NTP_SERVER_FALLBACK_1, NTP_SERVER_FALLBACK_2);
+        }
     }
     Serial.println();
 
