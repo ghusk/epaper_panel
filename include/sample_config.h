@@ -45,6 +45,13 @@
 // Do a full (ghost-clearing) refresh after this many partial-update cycles.
 #define FULL_REFRESH_EVERY_N_UPDATES  30
 
+// ---------------- Display ----------------
+// Panel mounting orientation. Use 180 if the panel is mounted with its cable
+// exiting the opposite side from the vendor's default, 0 otherwise. The
+// vendor driver only supports 0/90/180/270; this firmware only exercises
+// 0 and 180 since the panel is wider than it is tall.
+#define DISPLAY_ROTATION  180
+
 // ---------------- Timezones ----------------
 // Local time uses this POSIX TZ string. Find your string at:
 // https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
