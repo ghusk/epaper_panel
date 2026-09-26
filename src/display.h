@@ -4,6 +4,10 @@
 
 #include <Arduino.h>
 
+// Sets the panel rotation (0 or 180) used by subsequent renderBuffer() calls.
+// Call once during setup() before the first render.
+void displaySetRotation(uint16_t rotation);
+
 // Draws the full layout (header, local clock, weather, 4 timezones, footer)
 // into the internal screen buffer for the given freshness state. Does not
 // touch the physical panel; call pushFull()/pushPartial() afterwards.

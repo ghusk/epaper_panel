@@ -14,6 +14,7 @@
 
 #include "config.h"
 #include "EPD.h"
+#include "boot_config.h"
 #include "net_time.h"
 #include "weather.h"
 #include "display.h"
@@ -40,6 +41,8 @@ void setup() {
     digitalWrite(7, HIGH);
 
     EPD_GPIOInit();
+
+    displaySetRotation(getBootDisplayRotation());
 
     weatherInit();
 

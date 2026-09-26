@@ -17,6 +17,12 @@ static const uint16_t EPD_VISIBLE_H = 272;
 // 400x272 controller RAMs back to back).
 static uint8_t ImageBW[27200];
 
+static uint16_t currentRotation = DISPLAY_ROTATION;
+
+void displaySetRotation(uint16_t rotation) {
+    currentRotation = rotation;
+}
+
 // ---------------------------------------------------------------------------
 // Status icons
 // ---------------------------------------------------------------------------
@@ -149,7 +155,7 @@ static void drawWeatherIcon(int cx, int cy, int r, int conditionId, bool isDay) 
 }
 
 void renderBuffer(bool timeFresh) {
-    Paint_NewImage(ImageBW, EPD_W, EPD_H, DISPLAY_ROTATION, WHITE);
+    Paint_NewImage(ImageBW, EPD_W, EPD_H, currentRotation, WHITE);
     Paint_Clear(WHITE);
 
     char buf[64];
