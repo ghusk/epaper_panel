@@ -22,7 +22,8 @@ static ButtonState buttons[3] = {
 };
 
 void buttonsInit(uint16_t rotation) {
-    if (rotation == 180) {
+    // The pin mapping above matches the 180 mounting; swap for 0.
+    if (rotation == 0) {
         buttons[0].pin = PIN_WHEEL_DOWN;
         buttons[1].pin = PIN_WHEEL_UP;
     }

@@ -11,7 +11,7 @@ enum ButtonEvent {
 };
 
 // Configures the button pins. `rotation` is the display rotation (0 or 180);
-// at 180 the panel is mounted upside down, so physical up/down are swapped.
+// the wheel pins are mapped for the 180 mounting, so up/down swap at 0.
 void buttonsInit(uint16_t rotation);
 
 // Returns at most one new press since the last call. Call frequently.

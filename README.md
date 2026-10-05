@@ -48,7 +48,7 @@ Firmware for the CrowPanel ESP32-S3-WROOM-1-N8R8 5.79" e-paper display that show
 
 - **Menu button** (front-panel dial cluster), held during boot/reset: toggles display rotation
   (0°/180°) and persists the new value to NVS, so it survives future reboots without reflashing.
-- **Dial down** (relative to the panel orientation; swapped automatically at 180°): opens the
+- **Dial down** (relative to the panel orientation; swapped automatically with the rotation): opens the
   timezone info panel for the first configured zone - zone name, current UTC offset, next DST
   change (`yyyy-mm-dd hh:mm`, wall-clock time in that zone) and the offset after the change,
   relative to the local zone.
