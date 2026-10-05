@@ -83,3 +83,16 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
   and communicates over bit-banged (software) SPI — not hardware SPI, not GxEPD2.
 - Front-panel buttons (active-low): Menu=GPIO2, Back/Exit=GPIO1, Dial Up=GPIO6, Dial Down=GPIO4,
   Dial In/select=GPIO5. Menu is used for the boot-time rotation toggle; the dial drives the timezone info panel.
+
+## Toolchain notes
+
+- Build system: PlatformIO (`platform = espressif32`, `board = esp32-s3-devkitc-1`, Arduino framework),
+  environment `crowpanel-esp32s3`. Only library dependency: ArduinoJson ^7.2.0; the e-paper driver is
+  vendored in `lib/EPD`.
+- On the dev Mac, PlatformIO is a user pip install under Python 3.8 with no `pio` on PATH. Run it as
+  `/usr/bin/python3 -m platformio run` (build) and
+  `/usr/bin/python3 -m platformio run -t upload --upload-port /dev/cu.usbserial-10` (flash).
+  Toolchains/frameworks live in `~/.platformio/{packages,platforms}`.
+- Anaconda's `curl`/`python3` on PATH are broken (wrong CPU arch); use `/usr/bin/curl` and `/usr/bin/python3`.
+- The panel enumerates as `/dev/cu.usbserial-10`. Upload may need bootloader mode (hold BOOT, tap RESET).
+- A clean build takes ~1 minute; firmware uses ~28% flash / ~22% RAM.
