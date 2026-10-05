@@ -18,6 +18,7 @@
 #include "net_time.h"
 #include "weather.h"
 #include "display.h"
+#include "buttons.h"
 
 static unsigned long bootMillis = 0;
 static unsigned long lastNtpAttemptMillis = 0;
@@ -29,6 +30,37 @@ static unsigned long updateCounter = 0;
 // minute rollover. -1 means "none yet". Only meaningful once ntpEverSynced,
 // since it relies on the system clock being trustworthy.
 static long lastRenderedMinute = -1;
+
+// Which screen is showing. Always starts on the main display after a reboot.
+static bool showingTzInfo = false;
+static int tzInfoIndex = 0;
+
+static void renderCurrentView() {
+    if (showingTzInfo) {
+        renderTzInfoBuffer(tzInfoIndex);
+    } else {
+        renderBuffer(isTimeFresh());
+    }
+}
+
+static void handleButtons() {
+    ButtonEvent ev = buttonsPoll();
+    if (ev == BTN_EVENT_NONE) return;
+
+    if (ev == BTN_EVENT_DOWN && !showingTzInfo) {
+        showingTzInfo = true;
+        tzInfoIndex = 0;
+    } else if (ev == BTN_EVENT_PRESS && showingTzInfo) {
+        tzInfoIndex = (tzInfoIndex + 1) % tzInfoCount();
+    } else if (ev == BTN_EVENT_UP && showingTzInfo) {
+        showingTzInfo = false;
+    } else {
+        return;
+    }
+
+    renderCurrentView();
+    pushPartial();
+}
 
 void setup() {
     Serial.begin(115200);
@@ -42,7 +74,9 @@ void setup() {
 
     EPD_GPIOInit();
 
-    displaySetRotation(getBootDisplayRotation());
+    uint16_t rotation = getBootDisplayRotation();
+    displaySetRotation(rotation);
+    buttonsInit(rotation);
 
     weatherInit();
 
@@ -118,7 +152,7 @@ void loop() {
 
     if (shouldUpdateDisplay) {
         lastDisplayUpdateMillis = nowMs;
-        renderBuffer(isTimeFresh());
+        renderCurrentView();
         updateCounter++;
 
         if (updateCounter % FULL_REFRESH_EVERY_N_UPDATES == 0) {
@@ -128,5 +162,6 @@ void loop() {
         }
     }
 
-    delay(200);
+    handleButtons();
+    delay(20);
 }

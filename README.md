@@ -48,6 +48,12 @@ Firmware for the CrowPanel ESP32-S3-WROOM-1-N8R8 5.79" e-paper display that show
 
 - **Menu button** (front-panel dial cluster), held during boot/reset: toggles display rotation
   (0°/180°) and persists the new value to NVS, so it survives future reboots without reflashing.
+- **Dial down** (relative to the panel orientation; swapped automatically at 180°): opens the
+  timezone info panel for the first configured zone - zone name, current UTC offset, next DST
+  change (`yyyy-mm-dd hh:mm`, wall-clock time in that zone) and the offset after the change,
+  relative to the local zone.
+- **Dial in** (on the info panel): next configured timezone.
+- **Dial up** (on the info panel): back to the main display. A reboot always starts on the main display.
 
 POSIX TZ strings (with DST rules) can be looked up at:
 https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
@@ -62,6 +68,7 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
   `WeatherSnapshot` shared with the render loop.
 - `src/display.h/.cpp` — rendering: icons, `renderBuffer()`, `pushFull()`/`pushPartial()`,
   runtime-configurable rotation via `displaySetRotation()`.
+- `src/buttons.h/.cpp` - debounced dial up/down/press polling.
 - `src/boot_config.h/.cpp` — reads/persists display rotation in NVS (ESP32 `Preferences`),
   detects the Menu-button-held-at-boot toggle gesture.
 - `include/config.h` — user-editable settings.
@@ -75,4 +82,4 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 - The e-paper driver in `lib/EPD` is vendored verbatim from Elecrow's official example code
   and communicates over bit-banged (software) SPI — not hardware SPI, not GxEPD2.
 - Front-panel buttons (active-low): Menu=GPIO2, Back/Exit=GPIO1, Dial Up=GPIO6, Dial Down=GPIO4,
-  Dial In/select=GPIO5. Only Menu is currently used (boot-time rotation toggle).
+  Dial In/select=GPIO5. Menu is used for the boot-time rotation toggle; the dial drives the timezone info panel.

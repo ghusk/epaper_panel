@@ -94,13 +94,37 @@ static time_t tmFieldsAsEpoch(const struct tm &t) {
     return days * 86400L + t.tm_hour * 3600L + t.tm_min * 60L + t.tm_sec;
 }
 
-static bool checkTzOffset(const char *tz, long *outOffsetSec) {
+long tzOffsetAt(const char *tz, time_t t) {
     setenv("TZ", tz, 1);
     tzset();
-    time_t now = time(nullptr);
-    struct tm tmNow;
-    localtime_r(&now, &tmNow);
-    *outOffsetSec = (long)(tmFieldsAsEpoch(tmNow) - now);
+    struct tm tmAt;
+    localtime_r(&t, &tmAt);
+    return (long)(tmFieldsAsEpoch(tmAt) - t);
+}
+
+bool findNextOffsetChange(const char *tz, time_t from, time_t *outChange) {
+    const time_t STEP = 6 * 3600;
+    const time_t HORIZON = 400L * 86400L;
+    long base = tzOffsetAt(tz, from);
+
+    time_t lo = from;
+    for (time_t hi = from + STEP; hi <= from + HORIZON; hi += STEP) {
+        if (tzOffsetAt(tz, hi) != base) {
+            // lo still has the old offset, hi the new one: bisect to the second.
+            while (hi - lo > 1) {
+                time_t mid = lo + (hi - lo) / 2;
+                if (tzOffsetAt(tz, mid) == base) lo = mid; else hi = mid;
+            }
+            *outChange = hi;
+            return true;
+        }
+        lo = hi;
+    }
+    return false;
+}
+
+static bool checkTzOffset(const char *tz, long *outOffsetSec) {
+    *outOffsetSec = tzOffsetAt(tz, time(nullptr));
     // Real-world UTC offsets range from -12:00 to +14:00 and fall on 15-minute
     // boundaries; anything outside that points at a config typo.
     return (*outOffsetSec >= -12 * 3600L) && (*outOffsetSec <= 14 * 3600L) &&

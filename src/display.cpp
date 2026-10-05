@@ -260,6 +260,87 @@ void renderBuffer(bool timeFresh) {
     EPD_ShowString(8, 252, "Updates every 1 min - weather every 15 min - NTP hourly", 12, BLACK);
 }
 
+// ---------------------------------------------------------------------------
+// Timezone info panel
+// ---------------------------------------------------------------------------
+int tzInfoCount() {
+    return 4;
+}
+
+// Formats a seconds offset as e.g. "+5:30" / "-7:00".
+static void formatOffset(char *out, size_t n, long sec) {
+    char sign = sec < 0 ? '-' : '+';
+    long a = sec < 0 ? -sec : sec;
+    snprintf(out, n, "%c%ld:%02ld", sign, a / 3600, (a % 3600) / 60);
+}
+
+void renderTzInfoBuffer(int index) {
+    Paint_NewImage(ImageBW, EPD_W, EPD_H, currentRotation, WHITE);
+    Paint_Clear(WHITE);
+
+    const TimezoneConfig &zone = TIMEZONES[index];
+    char buf[96], off[16], off2[16];
+    time_t now = time(nullptr);
+
+    snprintf(buf, sizeof(buf), "Timezone info %d/%d", index + 1, tzInfoCount());
+    EPD_ShowString(8, 6, buf, 16, BLACK);
+    EPD_DrawLine(0, 32, EPD_VISIBLE_W, 32, BLACK);
+    EPD_DrawLine(0, 246, EPD_VISIBLE_W, 246, BLACK);
+    EPD_ShowString(8, 252, "Up: main display   Press: next timezone", 12, BLACK);
+
+    if (!ntpEverSynced) {
+        EPD_ShowString(8, 50, "Waiting for NTP sync...", 24, BLACK);
+        return;
+    }
+
+    long curOffset = tzOffsetAt(zone.posixTz, now);
+    char abbr[12];
+    struct tm curTm;
+    localtime_r(&now, &curTm);
+    strftime(abbr, sizeof(abbr), "%Z", &curTm);
+
+    time_t change = 0;
+    bool hasChange = findNextOffsetChange(zone.posixTz, now, &change);
+    long newOffset = curOffset;
+    long newLocalOffset = 0;
+    char changeStr[24] = "";
+    if (hasChange) {
+        newOffset = tzOffsetAt(zone.posixTz, change);
+        newLocalOffset = tzOffsetAt(LOCAL_TZ_POSIX, change);
+        // Wall-clock reading in the zone itself just as the change happens.
+        time_t wall = change + curOffset;
+        struct tm wallTm;
+        gmtime_r(&wall, &wallTm);
+        strftime(changeStr, sizeof(changeStr), "%Y-%m-%d %H:%M", &wallTm);
+    }
+    long localNow = tzOffsetAt(LOCAL_TZ_POSIX, now);
+
+    // Leave TZ on the local zone for anything drawn afterwards.
+    setenv("TZ", LOCAL_TZ_POSIX, 1);
+    tzset();
+
+    EPD_ShowString(8, 40, zone.label, 48, BLACK);
+
+    formatOffset(off, sizeof(off), curOffset);
+    snprintf(buf, sizeof(buf), "Now: %s  UTC%s", abbr, off);
+    EPD_ShowString(8, 100, buf, 24, BLACK);
+
+    if (hasChange) {
+        snprintf(buf, sizeof(buf), "Next change: %s", changeStr);
+        EPD_ShowString(8, 134, buf, 24, BLACK);
+
+        formatOffset(off, sizeof(off), newOffset);
+        formatOffset(off2, sizeof(off2), newOffset - newLocalOffset);
+        snprintf(buf, sizeof(buf), "Then: UTC%s  (%s vs %s)", off, off2, LOCAL_TZ_LABEL);
+        EPD_ShowString(8, 168, buf, 24, BLACK);
+    } else {
+        EPD_ShowString(8, 134, "Next change: none (no DST)", 24, BLACK);
+        formatOffset(off2, sizeof(off2), curOffset - localNow);
+        snprintf(buf, sizeof(buf), "Now: %s vs %s", off2, LOCAL_TZ_LABEL);
+        EPD_ShowString(8, 168, buf, 24, BLACK);
+    }
+}
+
 // True once the panel has been primed (fast-mode init + baseline clear) so
 // EPD_PartUpdate() has a valid "old" frame to diff against.
 static bool epdPrimed = false;

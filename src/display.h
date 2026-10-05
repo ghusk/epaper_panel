@@ -22,3 +22,11 @@ void pushFull();
 // is left initialized (no re-init, no deep sleep) so only the changed
 // pixels redraw instead of flashing the whole screen every minute.
 void pushPartial();
+
+// Number of timezones the info panel cycles through.
+int tzInfoCount();
+
+// Draws the timezone info panel (zone, next DST change, current UTC offset,
+// post-change offset relative to the local zone) for TIMEZONES[index] into the
+// screen buffer. Push with pushPartial() afterwards.
+void renderTzInfoBuffer(int index);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <time.h>
 
 // Connects to WiFi if not already connected. Returns true if connected
 // (either already, or after a successful connection attempt).
@@ -27,3 +28,12 @@ void validateTimezoneConfig();
 
 // True if validateTimezoneConfig() found a suspicious timezone config.
 extern bool tzConfigWarning;
+
+// UTC offset in seconds (positive east of UTC) that the given POSIX TZ string
+// yields at time t. Leaves the process TZ set to `tz`; callers restore it.
+long tzOffsetAt(const char *tz, time_t t);
+
+// Finds the first moment after `from` (within ~400 days) at which the UTC offset
+// of `tz` changes (DST start/end), to 1-second precision. Returns false if the
+// zone has no change in that window. Leaves the process TZ set to `tz`.
+bool findNextOffsetChange(const char *tz, time_t from, time_t *outChange);
