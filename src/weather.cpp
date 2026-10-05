@@ -3,11 +3,36 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <cctype>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
 #include "config.h"
+
+// Strips whitespace touching a comma (e.g. "City, CC" -> "City,CC") and
+// percent-encodes any remaining internal spaces, since OWM_CITY_QUERY may be
+// pasted from a website and the OpenWeatherMap API expects "City,CC" with no
+// space around the separator.
+static String sanitizeCityQuery(const char *raw) {
+    String s(raw);
+    s.trim();
+    String out;
+    out.reserve(s.length());
+    for (size_t i = 0; i < s.length(); ++i) {
+        unsigned char c = (unsigned char)s[i];
+        if (isspace(c)) {
+            bool nextIsComma = (i + 1 < s.length() && s[i + 1] == ',');
+            bool prevIsComma = (!out.isEmpty() && out[out.length() - 1] == ',');
+            if (nextIsComma || prevIsComma) continue;
+            out += ' ';
+        } else {
+            out += (char)c;
+        }
+    }
+    out.replace(" ", "%20");
+    return out;
+}
 
 // Guards weatherSnapshot below, since it's written from the background fetch
 // task (see weatherTaskFn) while getWeatherSnapshot() may be called
@@ -30,7 +55,7 @@ static bool fetchWeatherBlocking() {
     http.setConnectTimeout(8000);
     http.setTimeout(8000);
     String url = String("http://api.openweathermap.org/data/2.5/weather?q=") +
-                 OWM_CITY_QUERY + "&appid=" + OWM_API_KEY + "&units=" + OWM_UNITS;
+                 sanitizeCityQuery(OWM_CITY_QUERY) + "&appid=" + OWM_API_KEY + "&units=" + OWM_UNITS;
 
     Serial.println("Fetching weather...");
     http.begin(url);
