@@ -84,6 +84,23 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 - Front-panel buttons (active-low): Menu=GPIO2, Back/Exit=GPIO1, Dial Up=GPIO6, Dial Down=GPIO4,
   Dial In/select=GPIO5. Menu is used for the boot-time rotation toggle; the dial drives the timezone info panel.
 
+### Battery and charging
+
+- The panel can run on a 3.7V Li-ion battery (e.g. 503695 form factor, ~1300mAh / 4.81Wh,
+  4.2V charge limit) in addition to USB power, and has an on-board Li-ion charger IC
+  (`DFN8_4054A`, per the official schematic) that manages charging autonomously in hardware.
+- **Charging state and battery voltage/percentage are not readable by firmware on this board
+  revision.** The charger IC's status pin (silkscreened `GHRG`, almost certainly a typo for
+  `CHRG`) only reaches a local test point pad — it is not wired to any ESP32 GPIO. There is
+  likewise no voltage-divider tap from the battery/VBUS nets into an ADC-capable pin. This was
+  confirmed directly from Elecrow's published schematic
+  (`CrowPanel ESP32 Display-5.79(E) Inch.pdf` in the
+  [ESP32_S3-Ink-Screen](https://github.com/Elecrow-RD/ESP32_S3-Ink-Screen) repo), not just an
+  absence of documentation.
+- Reporting battery percentage or charge status on-screen would require a hardware modification
+  (e.g. soldering a wire from the `GHRG` test point and/or adding a resistor divider into a free
+  GPIO) — this firmware does not assume or attempt that modification.
+
 ## Toolchain notes
 
 - Build system: PlatformIO (`platform = espressif32`, `board = esp32-s3-devkitc-1`, Arduino framework),
