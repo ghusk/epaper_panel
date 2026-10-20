@@ -100,6 +100,15 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 - Reporting battery percentage or charge status on-screen would require a hardware modification
   (e.g. soldering a wire from the `GHRG` test point and/or adding a resistor divider into a free
   GPIO) — this firmware does not assume or attempt that modification.
+- **Possible future approach (not implemented):** rather than analog battery-voltage sensing,
+  firmware could track *time spent running on battery vs. on shore/USB power* and use that
+  elapsed-time history (together with the known ~1300mAh/4.81Wh capacity) as a rough proxy for
+  charge drawn down during an outage. This only needs a simple digital "is VBUS present?"
+  signal (not a precise analog reading), which is a smaller hardware modification than full
+  voltage sensing — e.g. a basic resistor divider from VBUS into one spare GPIO, sized to stay
+  under the GPIO's input voltage limit. This board does not expose such a signal today (same
+  schematic trace confirmed no GPIO is tied to the VBUS/battery nets at all), so this would
+  still require that one hardware tap before it could be implemented.
 
 ## Toolchain notes
 
