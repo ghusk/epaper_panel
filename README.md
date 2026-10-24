@@ -96,9 +96,9 @@ https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 - Anaconda's `curl`/`python3` on PATH are broken (wrong CPU arch); use `/usr/bin/curl` and `/usr/bin/python3`.
 - The panel enumerates as `/dev/cu.usbserial-10`. Upload may need bootloader mode (hold BOOT, tap RESET).
 - A clean build takes ~1 minute; firmware uses ~28% flash / ~22% RAM.
-- On this board's USB-serial adapter, **RTS** (not DTR) is wired to the ESP32's reset/EN line.
-  Toggling RTS low-high-low forces a hardware reset and shows the ROM bootloader + application
-  boot log on the serial monitor; toggling DTR instead does not reset the board (observed as
-  the port reading nothing but noise/garbage bytes). `pio device monitor` and PlatformIO's
-  uploader already handle this correctly - this only matters for ad hoc scripts that open the
-  port directly (e.g. raw `pyserial`) and need to force a reset themselves.
+- On this board's USB-serial adapter, **RTS** (not DTR) drives the ESP32's reset/EN line; DTR
+  resetting alone doesn't work (port just reads noise). RTS-only toggling leaves GPIO0 floating
+  high, so the chip autoboots into the app rather than entering esptool's bootloader-wait state
+  - entering bootloader mode additionally needs GPIO0 pulled low (DTR here), which PlatformIO's
+  uploader and the manual hold-BOOT-tap-RESET procedure above both already do. Only matters for
+  ad hoc scripts (e.g. raw `pyserial`) that open the port directly and need to force a reset.
