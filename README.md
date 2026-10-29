@@ -48,12 +48,16 @@ Firmware for the CrowPanel ESP32-S3-WROOM-1-N8R8 5.79" e-paper display that show
 
 - **Menu button** (front-panel dial cluster), held during boot/reset: toggles display rotation
   (0°/180°) and persists the new value to NVS, so it survives future reboots without reflashing.
-- **Dial down** (relative to the panel orientation; swapped automatically with the rotation): opens the
-  timezone info panel for the first configured zone - zone name, current UTC offset, next DST
-  change (`yyyy-mm-dd hh:mm`, wall-clock time in that zone) and the offset after the change,
-  relative to the local zone.
-- **Dial in** (on the info panel): next configured timezone.
-- **Dial up** (on the info panel): back to the main display. A reboot always starts on the main display.
+- **Dial Up/Down/Press (timezone info panel)** are disabled by default (`ENABLE_TZ_INFO_PANEL`
+  in [include/config.h](include/config.h)) - the code is still present, just not polled, since
+  this screen sees little real-world use and the polling has a small, ongoing power cost. When
+  enabled:
+  - **Dial down** (relative to the panel orientation; swapped automatically with the rotation): opens the
+    timezone info panel for the first configured zone - zone name, current UTC offset, next DST
+    change (`yyyy-mm-dd hh:mm`, wall-clock time in that zone) and the offset after the change,
+    relative to the local zone.
+  - **Dial in** (on the info panel): next configured timezone.
+  - **Dial up** (on the info panel): back to the main display. A reboot always starts on the main display.
 
 POSIX TZ strings (with DST rules) can be looked up at:
 https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv

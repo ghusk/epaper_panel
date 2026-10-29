@@ -52,6 +52,12 @@
 // 0 and 180 since the panel is wider than it is tall.
 #define DISPLAY_ROTATION  180
 
+// The dial Up/Down/Press buttons only drive the timezone info panel
+// (see README "Controls"); in practice this screen isn't used. Set to 1 to
+// restore the dial polling in setup()/loop(); the underlying button and
+// timezone-info-panel code is left in place either way.
+#define ENABLE_TZ_INFO_PANEL  0
+
 // ---------------- Timezones ----------------
 // Local time uses this POSIX TZ string. Find your string at:
 // https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv

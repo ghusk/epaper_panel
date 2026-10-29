@@ -43,6 +43,7 @@ static void renderCurrentView() {
     }
 }
 
+#if ENABLE_TZ_INFO_PANEL
 static void handleButtons() {
     ButtonEvent ev = buttonsPoll();
     if (ev == BTN_EVENT_NONE) return;
@@ -61,6 +62,7 @@ static void handleButtons() {
     renderCurrentView();
     pushPartial();
 }
+#endif
 
 void setup() {
     Serial.begin(115200);
@@ -76,7 +78,9 @@ void setup() {
 
     uint16_t rotation = getBootDisplayRotation();
     displaySetRotation(rotation);
+#if ENABLE_TZ_INFO_PANEL
     buttonsInit(rotation);
+#endif
 
     weatherInit();
 
@@ -162,6 +166,8 @@ void loop() {
         }
     }
 
+#if ENABLE_TZ_INFO_PANEL
     handleButtons();
+#endif
     delay(20);
 }
